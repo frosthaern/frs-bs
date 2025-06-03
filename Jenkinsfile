@@ -46,9 +46,42 @@ pipeline {
         '''
       }
     }
-  stage('Install Dependencies') {
+    stage('Install Dependencies') {
       steps {
-        sh 'npm i'
+        sh 'npm ci'  // Using ci for clean install
+      }
+    }
+
+    stage('Run Tests') {
+      steps {
+        script {
+          try {
+            // Run tests and generate coverage report
+            sh 'npm test -- --coverage --coverageReporters=cobertura'
+            
+            // Publish JUnit test results
+            junit '**/junit.xml'
+            
+            // Publish HTML coverage report
+            publishHTML(target: [
+              allowMissing: false,
+              alwaysLinkToLastBuild: false,
+              keepAll: true,
+              reportDir: 'coverage/lcov-report',
+              reportFiles: 'index.html',
+              reportName: 'Jest Coverage Report',
+              reportTitles: 'Jest Test Coverage'
+            ])
+            
+            // Archive test results
+            archiveArtifacts 'coverage/**/*'
+            
+          } catch (err) {
+            // Mark build as failed if tests fail
+            currentBuild.result = 'FAILURE'
+            error("Tests failed: ${err.message}")
+          }
+        }
       }
     }
 
